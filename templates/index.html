@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TODOアプリ</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>TODOアプリ</h1>
+        
+        <div class="todo-input">
+            <input type="text" id="todo-input" placeholder="新しいTODOを入力">
+            <button id="add-todo">追加</button>
+        </div>
+
+        <div class="todo-filters">
+            <button class="filter-btn active" data-filter="all">すべて</button>
+            <button class="filter-btn" data-filter="active">未完了</button>
+            <button class="filter-btn" data-filter="completed">完了済み</button>
+        </div>
+
+        <ul id="todo-list">
+            <!-- TODOアイテムがJavaScriptで動的に追加されます -->
+        </ul>
+    </div>
+
+    <!-- TODOアイテムのテンプレート -->
+    <template id="todo-item-template">
+        <li class="todo-item">
+            <div class="todo-content">
+                <input type="checkbox" class="todo-checkbox">
+                <span class="todo-text"></span>
+            </div>
+            <button class="delete-btn">削除</button>
+        </li>
+    </template>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
