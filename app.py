@@ -1,13 +1,38 @@
 from flask import Flask, request, jsonify, render_template
-import sqlite3
 from datetime import datetime
 import os
+import sqlite3
 from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__)
+
+# データベースの設定
+def get_db_path():
+    if 'VERCEL' in os.environ:
+        return '/tmp/database.db'
+    return 'database.db'
+
+def get_db():
+    db = sqlite3.connect(get_db_path())
+    db.row_factory = sqlite3.Row
+    return db
+
+def init_db():
+    db = get_db()
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS todos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            completed BOOLEAN NOT NULL DEFAULT 0,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            ai_suggestion TEXT
+        )
+    ''')
+    db.commit()
+    db.close()
 
 # OpenAI clientの設定
 client = OpenAI(
@@ -35,22 +60,6 @@ def get_ai_suggestion(todo_title):
         print(f"AI提案の生成中にエラーが発生しました: {e}")
         return None
 
-# データベースの初期化
-def init_db():
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS todos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            completed BOOLEAN NOT NULL DEFAULT 0,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            ai_suggestion TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
 # アプリケーション起動時にデータベースを初期化
 init_db()
 
@@ -62,13 +71,16 @@ def index():
 # TODOの取得
 @app.route('/api/todos', methods=['GET'])
 def get_todos():
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-    c.execute('SELECT * FROM todos ORDER BY created_at DESC')
-    todos = [{'id': row[0], 'title': row[1], 'completed': bool(row[2]), 'created_at': row[3], 'ai_suggestion': row[4]} 
-             for row in c.fetchall()]
-    conn.close()
-    return jsonify(todos)
+    db = get_db()
+    todos = db.execute('SELECT * FROM todos ORDER BY created_at DESC').fetchall()
+    db.close()
+    return jsonify([{
+        'id': todo['id'],
+        'title': todo['title'],
+        'completed': bool(todo['completed']),
+        'created_at': todo['created_at'],
+        'ai_suggestion': todo['ai_suggestion']
+    } for todo in todos])
 
 # TODOの追加
 @app.route('/api/todos', methods=['POST'])
@@ -77,25 +89,25 @@ def add_todo():
     if not title:
         return jsonify({'error': 'Title is required'}), 400
     
-    # AI提案を生成
     ai_suggestion = get_ai_suggestion(title)
     
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-    c.execute('INSERT INTO todos (title, ai_suggestion) VALUES (?, ?)', (title, ai_suggestion))
-    todo_id = c.lastrowid
-    conn.commit()
+    db = get_db()
+    cursor = db.execute(
+        'INSERT INTO todos (title, ai_suggestion) VALUES (?, ?)',
+        (title, ai_suggestion)
+    )
+    todo_id = cursor.lastrowid
+    db.commit()
     
-    c.execute('SELECT * FROM todos WHERE id = ?', (todo_id,))
-    todo = c.fetchone()
-    conn.close()
+    todo = db.execute('SELECT * FROM todos WHERE id = ?', (todo_id,)).fetchone()
+    db.close()
     
     return jsonify({
-        'id': todo[0],
-        'title': todo[1],
-        'completed': bool(todo[2]),
-        'created_at': todo[3],
-        'ai_suggestion': todo[4]
+        'id': todo['id'],
+        'title': todo['title'],
+        'completed': bool(todo['completed']),
+        'created_at': todo['created_at'],
+        'ai_suggestion': todo['ai_suggestion']
     }), 201
 
 # TODOの更新（完了状態の切り替え）
@@ -103,34 +115,35 @@ def add_todo():
 def update_todo(todo_id):
     completed = request.json.get('completed', False)
     
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-    c.execute('UPDATE todos SET completed = ? WHERE id = ?', (completed, todo_id))
-    conn.commit()
+    db = get_db()
+    db.execute(
+        'UPDATE todos SET completed = ? WHERE id = ?',
+        (completed, todo_id)
+    )
+    db.commit()
     
-    c.execute('SELECT * FROM todos WHERE id = ?', (todo_id,))
-    todo = c.fetchone()
-    conn.close()
-    
+    todo = db.execute('SELECT * FROM todos WHERE id = ?', (todo_id,)).fetchone()
     if todo is None:
+        db.close()
         return jsonify({'error': 'Todo not found'}), 404
-    
-    return jsonify({
-        'id': todo[0],
-        'title': todo[1],
-        'completed': bool(todo[2]),
-        'created_at': todo[3],
-        'ai_suggestion': todo[4]
-    })
+        
+    result = {
+        'id': todo['id'],
+        'title': todo['title'],
+        'completed': bool(todo['completed']),
+        'created_at': todo['created_at'],
+        'ai_suggestion': todo['ai_suggestion']
+    }
+    db.close()
+    return jsonify(result)
 
 # TODOの削除
 @app.route('/api/todos/<int:todo_id>', methods=['DELETE'])
 def delete_todo(todo_id):
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-    c.execute('DELETE FROM todos WHERE id = ?', (todo_id,))
-    conn.commit()
-    conn.close()
+    db = get_db()
+    db.execute('DELETE FROM todos WHERE id = ?', (todo_id,))
+    db.commit()
+    db.close()
     return '', 204
 
 if __name__ == '__main__':
