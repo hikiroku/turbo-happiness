@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 # データベースの初期化
 def init_db():
-    conn = sqlite3.connect('todo-app/database.db')
+    conn = sqlite3.connect('database.db')
     c = conn.cursor()
     c.execute('''
         CREATE TABLE IF NOT EXISTS todos (
@@ -30,7 +30,7 @@ def index():
 # TODOの取得
 @app.route('/api/todos', methods=['GET'])
 def get_todos():
-    conn = sqlite3.connect('todo-app/database.db')
+    conn = sqlite3.connect('database.db')
     c = conn.cursor()
     c.execute('SELECT * FROM todos ORDER BY created_at DESC')
     todos = [{'id': row[0], 'title': row[1], 'completed': bool(row[2]), 'created_at': row[3]} 
@@ -45,7 +45,7 @@ def add_todo():
     if not title:
         return jsonify({'error': 'Title is required'}), 400
     
-    conn = sqlite3.connect('todo-app/database.db')
+    conn = sqlite3.connect('database.db')
     c = conn.cursor()
     c.execute('INSERT INTO todos (title) VALUES (?)', (title,))
     todo_id = c.lastrowid
@@ -67,7 +67,7 @@ def add_todo():
 def update_todo(todo_id):
     completed = request.json.get('completed', False)
     
-    conn = sqlite3.connect('todo-app/database.db')
+    conn = sqlite3.connect('database.db')
     c = conn.cursor()
     c.execute('UPDATE todos SET completed = ? WHERE id = ?', (completed, todo_id))
     conn.commit()
@@ -89,7 +89,7 @@ def update_todo(todo_id):
 # TODOの削除
 @app.route('/api/todos/<int:todo_id>', methods=['DELETE'])
 def delete_todo(todo_id):
-    conn = sqlite3.connect('todo-app/database.db')
+    conn = sqlite3.connect('database.db')
     c = conn.cursor()
     c.execute('DELETE FROM todos WHERE id = ?', (todo_id,))
     conn.commit()
