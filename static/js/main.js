@@ -93,6 +93,14 @@ document.addEventListener('DOMContentLoaded', () => {
         checkbox.checked = todo.completed;
         todoText.textContent = todo.title;
 
+        // AI提案の表示
+        const aiSuggestion = template.querySelector('.ai-suggestion');
+        if (todo.ai_suggestion) {
+            aiSuggestion.textContent = todo.ai_suggestion;
+        } else {
+            aiSuggestion.style.display = 'none';
+        }
+
         // イベントリスナーの設定
         checkbox.addEventListener('change', () => {
             updateTodoStatus(todo.id, checkbox.checked);

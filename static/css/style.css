@@ -114,6 +114,17 @@ button:hover {
 
 .todo-text {
     font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.ai-suggestion {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    white-space: pre-line;
 }
 
 .todo-item.completed .todo-text {
